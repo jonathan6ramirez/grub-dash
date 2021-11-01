@@ -36,7 +36,7 @@ function bodyHasValidProperty(request, response, next) {
             message: `Order must include a description`
         })
     }
-    else if (!price || price <= 0) {
+    else if (!price || price <= 0 || typeof(price) !== "number") {
         next({
             status: 400,
             message: `Dish must have a price that is an integer greater than 0`
@@ -48,6 +48,9 @@ function bodyHasValidProperty(request, response, next) {
         message: `	Dish must include a image_url`
       })
     }
+    else {
+         return next()
+    }
     
   }
 
@@ -56,6 +59,9 @@ function routeMatch (req, res, next) {
   const id = req.body.data.id;
   if( dishId == id){
     return next()
+  }
+  else if (!id || id == null){
+      return next()
   }
   next({
     status: 400,
@@ -73,21 +79,34 @@ function read (req, res) {
     res.json({ data: res.locals.dish})
 }
 
-function update (req, res, next) {
+function update (req, res) {
     const dish = res.locals.dish;
-    //const originalResult = flip
+    const ogName = dish.name;
+    const ogDescription = dish.description;
+    const ogPrice = dish.price;
+    const ogImage_url = dish.image_url;
+    const { data: { name, description, price, image_url } = {} } = req.body;
+    if (ogName !== name || ogDescription !== description || ogPrice !== price || ogImage_url !== image_url) {
+            dish.name = name;
+            dish.description = description;
+            dish.price = price;
+            dish.image_url = image_url;
+    }
+    res.json({ data: dish})
 }
 
 function create (req, res) {
     const { data: { name, description, price, image_url} } = req.body;
+    const newId = nextId(); 
     const newDish = {
-      id: nextId,
+      "id": newId,
       "name": name,
       "description": description,
       "price": price,
       "image_url": image_url
     }
-    res.send(201).json({ data: newDish})
+    dishes.push(newDish)
+    res.status(201).json({ data: newDish})
 }
 
 // Exports
@@ -95,6 +114,5 @@ module.exports = {
     list,
     read: [dishExists, read],
     create: [bodyHasValidProperty, create],
-    update: [dishExists, routeMatch],
-
+    update: [dishExists, routeMatch, bodyHasValidProperty, update],
 }
